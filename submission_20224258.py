@@ -2,54 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# --- Helper Modules ---
-
-class ConvBNReLU(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1):
-        super(ConvBNReLU, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=False)
-        )
-    def forward(self, x):
-        return self.conv(x)
-
-class DepthwiseSeparableConv(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1):
-        super(DepthwiseSeparableConv, self).__init__()
-        self.depthwise = nn.Conv2d(in_channels, in_channels, 3, stride, 1, groups=in_channels, bias=False)
-        self.bn1 = nn.BatchNorm2d(in_channels)
-        self.relu1 = nn.ReLU(inplace=False)
-        
-        self.pointwise = nn.Conv2d(in_channels, out_channels, 1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.relu2 = nn.ReLU(inplace=False)
-
-    def forward(self, x):
-        x = self.relu1(self.bn1(self.depthwise(x)))
-        x = self.relu2(self.bn2(self.pointwise(x)))
-        return x
-
-class SEBlock(nn.Module):
-    """Squeeze-and-Excitation Block for channel-wise attention"""
-    def __init__(self, channels, reduction=4):
-        super(SEBlock, self).__init__()
-        self.pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Linear(channels, channels // reduction, bias=False),
-            nn.ReLU(inplace=False),
-            nn.Linear(channels // reduction, channels, bias=False),
-            nn.Sigmoid()
-        )
-    def forward(self, x):
-        b, c, _, _ = x.size()
-        y = self.pool(x).view(b, c)
-        y = self.fc(y).view(b, c, 1, 1)
-        return x * y.expand_as(x)
-
-# --- Main Model: Lightweight U-Net with SE-Block ---
-
 class submission_20224258(nn.Module):
     def __init__(self, in_channels=3, num_classes=1):
         super(submission_20224258, self).__init__()
@@ -109,3 +61,49 @@ class submission_20224258(nn.Module):
 
         out = self.classifier(d0)
         return out
+
+class ConvBNReLU(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1):
+        super(ConvBNReLU, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=False)
+        )
+    def forward(self, x):
+        return self.conv(x)
+
+class DepthwiseSeparableConv(nn.Module):
+    def __init__(self, in_channels, out_channels, stride=1):
+        super(DepthwiseSeparableConv, self).__init__()
+        self.depthwise = nn.Conv2d(in_channels, in_channels, 3, stride, 1, groups=in_channels, bias=False)
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        self.relu1 = nn.ReLU(inplace=False)
+        
+        self.pointwise = nn.Conv2d(in_channels, out_channels, 1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.relu2 = nn.ReLU(inplace=False)
+
+    def forward(self, x):
+        x = self.relu1(self.bn1(self.depthwise(x)))
+        x = self.relu2(self.bn2(self.pointwise(x)))
+        return x
+
+class SEBlock(nn.Module):
+    """Squeeze-and-Excitation Block for channel-wise attention"""
+    def __init__(self, channels, reduction=4):
+        super(SEBlock, self).__init__()
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channels, channels // reduction, bias=False),
+            nn.ReLU(inplace=False),
+            nn.Linear(channels // reduction, channels, bias=False),
+            nn.Sigmoid()
+        )
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        y = self.pool(x).view(b, c)
+        y = self.fc(y).view(b, c, 1, 1)
+        return x * y.expand_as(x)
+
+
